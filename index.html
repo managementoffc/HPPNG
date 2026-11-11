@@ -41,14 +41,43 @@ input[type=color]{width:52px;height:40px;padding:2px;border:1.5px solid var(--ln
 .btn{border:1.5px solid var(--ac);background:transparent;color:var(--ac);border-radius:10px;padding:10px 14px;min-height:44px;margin:4px 6px 4px 0}
 textarea{width:100%;height:90px;border:1.5px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--tx);padding:8px;font:12px monospace}
 @media (max-width:520px){.big{font-size:36px}.stats b{font-size:16px}}
+
+/* ===== tampilan pastel ===== */
+:root{--soft:#FFF3EE;--line:#F2D8CD}
+@supports (color:color-mix(in srgb,red,blue)){:root{--soft:color-mix(in srgb,var(--ac) 9%,var(--card));--line:color-mix(in srgb,var(--ac) 26%,var(--card))}}
+body{background:linear-gradient(180deg,var(--soft) 0,var(--bg) 280px) no-repeat,var(--bg)}
+.wrap{max-width:860px}
+.card{border:1.5px solid var(--line);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,.04);padding:20px}
+.wrap>.card:first-child{background:var(--soft)}
+.card h2{padding-bottom:6px;border-bottom:1.5px dashed var(--line);margin:20px 0 10px}
+.card h2:first-child{margin-top:0}
+#tabs{background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:5px;width:fit-content;max-width:100%;gap:4px}
+#tabs .chip{border:0;background:transparent;padding:9px 18px;min-height:40px}
+#tabs .chip[aria-pressed="true"]{background:var(--ac);color:#fff}
+.chip{border:1.5px solid var(--line)}
+.chip:hover{background:var(--soft)}
+.chip[aria-pressed="true"]:hover{background:var(--ac)}
+.chk{border:1.5px solid var(--line);background:var(--soft);border-radius:14px}
+.stats>div{background:var(--soft);border:1.5px solid var(--line);border-radius:14px}
+.line{border-top:1px dashed var(--line)}
+.bar{background:var(--soft)}
+th,td{border-bottom:1px solid var(--line)}
+th{background:var(--soft)}
+tr.pick:hover td{background:var(--soft)}
+tr.pick[aria-selected="true"]{background:var(--soft)}
+input[type=number],input[type=text],input[type=password],select{border:1.5px solid var(--line);background:var(--card);border-radius:10px}
+input:focus,select:focus{outline:2px solid var(--ac);outline-offset:1px}
+details summary{border-bottom:1.5px dashed var(--line)}
+.btn{border-radius:12px}
+textarea{border:1.5px solid var(--line)}
 </style></head><body>
 <div class="wrap">
 <div class="card">
 <h1 id="brand"></h1><div class="mu" id="banner" hidden style="margin:0 0 6px;color:var(--lo)"></div>
-<div class="mu">Kalkulator HPP Mitra. Pilih produk, ukuran, dan jenis hitungan, lalu lihat modal dan profit per kemasan. Harga bisa diubah di <b>Edit Harga &amp; Produk</b> paling bawah.</div>
+<div class="mu">Kalkulator HPP Mitra. Pilih produk, ukuran, dan jenis hitungan, lalu lihat modal dan profit per kemasan. Harga terbaru bisa dicek di menu <b>Pricelist</b>.</div>
 </div>
 
-<div class="row" id="tabs" style="margin-bottom:16px"><button class="chip" data-tab="hpp">Kalkulator HPP</button><button class="chip" data-tab="pl" id="pltab" hidden>Pricelist</button><button class="chip" data-tab="ed" id="edtab" hidden>Edit Harga &amp; Produk</button></div>
+<div class="row" id="tabs" style="margin-bottom:16px"><button class="chip" data-tab="hpp">Kalkulator HPP</button><button class="chip" data-tab="pl" id="pltab">Pricelist</button><button class="chip" data-tab="ed" id="edtab" hidden>Edit Harga &amp; Produk</button></div>
 <div id="tab-hpp">
 <div class="card">
 <h2>1. Pilih produk</h2><div class="row" id="pchips"></div>
@@ -72,7 +101,7 @@ textarea{width:100%;height:90px;border:1.5px solid var(--ln);border-radius:8px;b
 
 </div>
 <div id="tab-pl" hidden>
-<div class="card" id="plcard"><h2>Pricelist harga bahan baku</h2><div class="mu" style="margin-bottom:8px">Harga di sini otomatis dipakai di Kalkulator HPP.</div><div class="scroll"><table id="pl"></table></div></div>
+<div class="card" id="plcard"><h2>Pricelist harga bahan baku</h2><div class="mu" style="margin-bottom:8px">Harga di sini otomatis dipakai di Kalkulator HPP.</div><div class="mu" id="plupd" style="margin-bottom:8px"></div><div class="scroll"><table id="pl"></table></div></div>
 </div>
 <div id="tab-ed" hidden>
 <div class="card" id="editcard" hidden>
@@ -96,7 +125,7 @@ window.CONFIG={url:"https://mfjoylnjjxurqcgzdrvm.supabase.co",anon:"sb_publishab
 <script>
 (function(){
 var KEY="hpp-jual-"+(new URLSearchParams(location.search).get("brand")||"ngemiloh").toLowerCase().replace(/[^a-z0-9_-]/g,"");
-var CFG=window.CONFIG||{},LJ={},canEdit=false,tab="hpp",sb=null,noData=false;
+var CFG=window.CONFIG||{},LJ={},canEdit=false,tab="hpp",sb=null,noData=false,loadErr="";
 var BRAND=(new URLSearchParams(location.search).get("brand")||CFG.defaultBrand||"ngemiloh").toLowerCase().replace(/[^a-z0-9_-]/g,"");
 function B(n,p){return{n:n,p:p,g:100}}
 var DEF={ver:0,brand:"Ngemiloh",color:"#E4572E",
@@ -145,9 +174,9 @@ $("res").innerHTML='<div class="lbl">Modal (HPP) per kemasan · '+esc(tag.join("
 +'<div class="stats"><div><span class="lbl">Harga jual</span><b>'+(c.has?fmt(c.jual):"Belum diisi")+'</b></div><div><span class="lbl">Profit mitra</span><b>'+(c.has&&!ms.length?fmt(c.profit):"–")+'</b></div><div><span class="lbl">Profit % dari HPP</span><b>'+pill(ms.length?{has:false}:c)+'</b></div></div>'
 +(ms.length?'<div class="mu" style="margin-bottom:8px">Data ukuran ini belum lengkap ('+ms.join(", ")+'), jadi HPP belum final. Isi di kolom "Takaran per kemasan" pada langkah di atas.</div>':"")+(c.has?"":'<div class="mu" style="margin-bottom:8px">Isi harga jualmu di kolom "Harga jual kamu" pada langkah di atas.</div>')
 +'<div style="font-weight:700">Rincian modal</div>'+(lines||'<div class="mu">Pilih minimal satu komponen.</div>');
-if(!canEdit)tab="hpp";renderPL();$("tab-hpp").hidden=tab!="hpp";$("tab-pl").hidden=tab!="pl";$("tab-ed").hidden=tab!="ed";document.querySelectorAll("[data-tab]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.tab==tab)});$("sumcard").hidden=!inc.bum;
+if(!canEdit&&tab=="ed")tab="hpp";renderPL();$("tab-hpp").hidden=tab!="hpp";$("tab-pl").hidden=tab!="pl";$("tab-ed").hidden=tab!="ed";document.querySelectorAll("[data-tab]").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.tab==tab)});$("sumcard").hidden=!inc.bum;
 $("sum").innerHTML='<tr><th>Bumbu</th><th>HPP</th><th>Harga jual</th><th>Profit</th><th>%</th></tr>'+S.bum.map(function(b,i){var q=calc(sel.p,sel.u,i,sel.s);return '<tr class="pick" data-cb="'+i+'" aria-selected="'+(i==sel.b)+'"><td>'+esc(b.n)+'</td><td>'+fmt(q.hpp)+'</td><td>'+(q.has?fmt(q.jual):"–")+'</td><td>'+(q.has?fmt(q.profit):"–")+'</td><td>'+pill(q)+'</td></tr>'}).join("")}
-function renderPL(){function sat(g){g=g||1;return g>=1000&&g%1000==0?(g/1000)+" kg":g+" gr"}
+function renderPL(){var vd=DEF.ver>0?new Date(DEF.ver).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"}):"";$("plupd").textContent=vd?"Diperbarui: "+vd:"";function sat(g){g=g||1;return g>=1000&&g%1000==0?(g/1000)+" kg":g+" gr"}
 function sec(t,r){return '<tr><th colspan="3" style="color:var(--ac);padding-top:14px">'+t+'</th></tr>'+r.map(function(x){return '<tr><td>'+esc(x[0])+'</td><td>'+esc(x[1])+'</td><td><b>'+fmt(x[2])+'</b></td></tr>'}).join("")}
 $("pl").innerHTML='<tr><th>NAMA BARANG</th><th>SATUAN</th><th>HARGA</th></tr>'+sec("Produk (per satuan)",S.pro.map(function(x){return[x.n,sat(x.g),x.p]}))+sec("Bumbu tabur",S.bum.map(function(x){return["Bumbu Tabur "+x.n,sat(x.g),x.p]}))+sec("Saus",S.sau.map(function(x){return[x.n,sat(x.g),x.p]}))+sec("Kemasan &amp; perlengkapan",S.kem.map(function(x){return[x.n,"1 pack (isi "+x.g+" pcs)",x.p]}))}
 function inp(t,i,f,v,type,k){return '<input type="'+type+'" data-t="'+t+'" data-i="'+i+'" data-f="'+f+'"'+(k!=null?' data-k="'+k+'"':'')+' value="'+esc(v)+'"'+(type=="number"?' inputmode="decimal" min="0" step="any"':'')+'>'}
@@ -164,15 +193,17 @@ $("edit").innerHTML=h;pgUpdate()}
 function pgUpdate(){["pro","kem","bum","sau"].forEach(function(t){S[t].forEach(function(x,i){var e=$("pg-"+t+"-"+i);if(e)e.textContent=fmt(pg(x))+(t=="kem"?" / pcs":" / gr")})})}
 function all(){buildEdit();render()}
 function applyRole(){
-$("tabs").hidden=!canEdit;$("pltab").hidden=!canEdit;$("edtab").hidden=!canEdit;$("editcard").hidden=!canEdit;
+$("tabs").hidden=((noData||loadErr)&&!canEdit);$("edtab").hidden=!canEdit;$("editcard").hidden=!canEdit;
 $("logout").hidden=!(sb&&canEdit);$("foot").hidden=!(sb&&!canEdit);if(canEdit)$("loginbox").hidden=true;
-$("tab-hpp").style.display=(noData&&!canEdit)?"none":"";
+$("tab-hpp").style.display=((noData||loadErr)&&!canEdit)?"none":"";
 var b=$("banner");b.hidden=false;
 if(!sb)b.textContent="Mode pratinjau: belum tersambung ke Supabase. Isi url dan anon di bagian CONFIG pada index.html.";
+else if(loadErr)b.textContent="Gagal memuat data dari Supabase: "+loadErr+". Cek url dan anon di CONFIG, atau muat ulang halaman.";
 else if(noData&&!canEdit)b.textContent="Data harga untuk brand ini belum tersedia.";
 else b.hidden=true;
 document.querySelector(".wrap").style.visibility="visible"}
 function simpan(){if(!sb){msg("Belum tersambung ke Supabase.");return}
+if(loadErr){msg("Data belum berhasil dimuat, simpan dibatalkan supaya data lama tidak tertimpa. Muat ulang halaman dulu.");return}
 var nd=clone(S);delete nd.base;nd.ver=Date.now();msg("Menyimpan...");
 sb.from("hpp_config").upsert({brand:BRAND,data:nd,updated_at:new Date().toISOString()}).then(function(r){if(r.error){msg("Gagal menyimpan: "+r.error.message)}else{DEF=nd;noData=false;applyRole();msg("Tersimpan. Mitra langsung melihat harga terbaru.")}})}
 function masuk(){var em=$("lemail").value.trim(),pw=$("lpass").value;$("lmsg").textContent="Masuk...";
@@ -214,12 +245,12 @@ if(d.k!=null)o[f][+d.k]=v;else o[f]=v;
 save();render();pgUpdate();
 if(n&&(d.t=="kem"||d.t=="uk"||d.t=="pro"))e.target.addEventListener("change",buildEdit,{once:true})});
 (function boot(){
-if(window.supabase&&CFG.url&&CFG.anon&&CFG.url.indexOf("ISI_")<0){try{sb=window.supabase.createClient(CFG.url,CFG.anon)}catch(e){sb=null}}
+if(window.supabase&&CFG.url&&CFG.anon&&CFG.url.indexOf("ISI_")<0){try{sb=window.supabase.createClient(new URL(String(CFG.url).trim()).origin,String(CFG.anon).trim())}catch(e){sb=null}}
 if(!sb){canEdit=true;applyRole();all();return}
 var done=false;function go(){if(done)return;done=true;applyRole();all()}
 setTimeout(go,8000);
 sb.from("hpp_config").select("data").eq("brand",BRAND).maybeSingle().then(function(r){
-if(r.data&&r.data.data){DEF=r.data.data}else{noData=true;DEF.brand=BRAND.charAt(0).toUpperCase()+BRAND.slice(1)}
+if(r.error){loadErr=r.error.message||"error tidak diketahui"}else if(r.data&&r.data.data){DEF=r.data.data}else{noData=true;DEF.brand=BRAND.charAt(0).toUpperCase()+BRAND.slice(1)}
 S=load();return sb.auth.getSession()}).then(function(r){var ses=r&&r.data&&r.data.session;if(ses){canEdit=true;S=clone(DEF)}startRealtime();go()}).catch(function(){go()})})();
 })();
 </script>

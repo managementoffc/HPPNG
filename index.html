@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Kalkulator HPP Mitra</title><style>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Kalkulator HPP Ngemiloh</title><style>
 :root{--bg:#FAFAF8;--card:#fff;--tx:#1A1A1A;--mu:#5E5E5E;--ln:#E3E3DE;--ac:#E4572E;--ok:#0B6B34;--okbg:#E3F3E8;--mid:#7A5000;--midbg:#FFF1CC;--lo:#A8231B;--lobg:#FDE6E3;color-scheme:light}
 @media (prefers-color-scheme:dark){:root{--bg:#151515;--card:#222;--tx:#F2F2F2;--mu:#B4B4B4;--ln:#3A3A3A;--ok:#7BE0A3;--okbg:#17301F;--mid:#F2C14E;--midbg:#352B10;--lo:#FF9088;--lobg:#3A2220;color-scheme:dark}}
 *{box-sizing:border-box}
@@ -42,6 +42,7 @@ input[type=color]{width:52px;height:40px;padding:2px;border:1.5px solid var(--ln
 textarea{width:100%;height:90px;border:1.5px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--tx);padding:8px;font:12px monospace}
 @media (max-width:520px){.big{font-size:36px}.stats b{font-size:16px}}
 
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* ===== tampilan pastel ===== */
 :root{--soft:#FFF3EE;--line:#F2D8CD}
 @supports (color:color-mix(in srgb,red,blue)){:root{--soft:color-mix(in srgb,var(--ac) 9%,var(--card));--line:color-mix(in srgb,var(--ac) 26%,var(--card))}}
@@ -73,7 +74,7 @@ textarea{border:1.5px solid var(--line)}
 </style></head><body>
 <div class="wrap">
 <div class="card">
-<h1 id="brand"></h1><div class="mu" id="banner" hidden style="margin:0 0 6px;color:var(--lo)"></div>
+<img id="logo" alt="" hidden style="height:48px;width:auto;display:block;margin-bottom:6px"><h1 id="brand"></h1><div class="mu" id="banner" hidden style="margin:0 0 6px;color:var(--lo)"></div>
 <div class="mu">Kalkulator HPP Mitra. Pilih produk, ukuran, dan jenis hitungan, lalu lihat modal dan profit per kemasan. Harga terbaru bisa dicek di menu <b>Pricelist</b>.</div>
 </div>
 
@@ -120,15 +121,34 @@ textarea{border:1.5px solid var(--line)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ===== CONFIG: isi dari Supabase (Project Settings > API). Anon key memang boleh publik. JANGAN pakai service_role. ===== */
-window.CONFIG={url:"https://mfjoylnjjxurqcgzdrvm.supabase.co",anon:"sb_publishable_uAhBpK4Bx6ysp5kHPgOuNg_6xPlqVJV",defaultBrand:"ngemiloh"};
+/* =====================================================================
+   MENTAHAN KALKULATOR HPP MITRA  (satu file untuk banyak brand)
+   Cara bikin brand baru: salin repo/file ini, lalu ubah HANYA bagian CONFIG di bawah.
+   - url & anon : dari Supabase (Project Settings > API). Sama untuk semua brand.
+                  Anon key boleh publik. JANGAN pernah memakai service_role key.
+   - brand      : kode brand, huruf kecil tanpa spasi (mis. "melumer"). Jadi nama baris
+                  di tabel hpp_config. Tiap brand HARUS punya kode yang berbeda.
+   - nama,warna,logo : tampilan awal sebelum data pertama disimpan (nanti bisa diubah
+                  lewat menu Edit setelah login admin).
+   Alternatif: satu file saja untuk semua brand, dibuka dengan ?brand=kodebrand
+   (mis. index.html?brand=melumer). Kode brand di link mengalahkan CONFIG.brand.
+   ===================================================================== */
+window.CONFIG={
+  url:"https://mfjoylnjjxurqcgzdrvm.supabase.co",
+  anon:"sb_publishable_uAhBpK4Bx6ysp5kHPgOuNg_6xPlqVJV",
+  brand:"ngemiloh",
+  nama:"Ngemiloh",
+  warna:"#E4572E",
+  logo:""   /* opsional: alamat gambar, mis. "logo.png" (taruh di repo yang sama) */
+};
 </script>
 <script>
 (function(){
-var KEY="hpp-jual-"+(new URLSearchParams(location.search).get("brand")||"ngemiloh").toLowerCase().replace(/[^a-z0-9_-]/g,"");
+var KEY="hpp-jual-"+(new URLSearchParams(location.search).get("brand")||(window.CONFIG||{}).brand||"namabrand").toLowerCase().replace(/[^a-z0-9_-]/g,"");
 var CFG=window.CONFIG||{},LJ={},canEdit=false,tab="hpp",sb=null,noData=false,loadErr="";
-var BRAND=(new URLSearchParams(location.search).get("brand")||CFG.defaultBrand||"ngemiloh").toLowerCase().replace(/[^a-z0-9_-]/g,"");
+var BRAND=(new URLSearchParams(location.search).get("brand")||CFG.brand||"namabrand").toLowerCase().replace(/[^a-z0-9_-]/g,"");
 function B(n,p){return{n:n,p:p,g:100}}
-var DEF={ver:0,brand:"Ngemiloh",color:"#E4572E",
+var DEF={ver:0,brand:CFG.nama||"Nama Brand",color:CFG.warna||"#E4572E",logo:CFG.logo||"",
 pro:[["Macaroni Mateng",31000,[6000,0,0]],["Mie Lidi",30000],["Pilus",29500],["Mie Kremes",31000],["Basreng",38500],["Usus",57000],["Mie Gulung",56000],["Pangsit",42000],["Kerapu",45000]].map(function(x){return{n:x[0],p:x[1],g:1000,j:x[2]||[0,0,0]}}),
 uk:[{n:"Besar 100 gr",gr:100,kem:0,bu:8,sa:30},{n:"Kecil 50 gr",gr:50,kem:1,bu:4,sa:30},{n:"Foodpail",gr:100,kem:2,bu:10,sa:30}],
 kem:[{n:"Plastik Besar 100 gr",p:5000,g:10},{n:"Plastik Kecil 50 gr",p:3000,g:10},{n:"Foodpail",p:13000,g:10}],
@@ -157,7 +177,7 @@ function chips(a,k,cur){return a.map(function(x,i){return '<button class="chip" 
 function render(){
 sel.p=Math.min(sel.p,S.pro.length-1);sel.u=Math.min(sel.u,S.uk.length-1);sel.b=Math.min(sel.b,S.bum.length-1);sel.s=Math.min(sel.s,Math.max(S.sau.length-1,0));
 document.documentElement.style.setProperty("--ac",S.color);
-$("brand").textContent=S.brand;document.title="Kalkulator HPP "+S.brand;
+$("brand").textContent=S.brand;var lg=S.logo||"",im=$("logo");if(lg){im.src=lg;im.alt=S.brand;im.hidden=false;$("brand").className="sr"}else{im.hidden=true;$("brand").className=""};if(lg){var fv=document.querySelector('link[rel~="icon"]');if(!fv){fv=document.createElement("link");fv.rel="icon";document.head.appendChild(fv)}fv.href=lg}document.title="Kalkulator HPP "+S.brand;
 $("pchips").innerHTML=chips(S.pro,"p",sel.p);$("uchips").innerHTML=chips(S.uk,"u",sel.u);
 var m=inc.bahan&&inc.kem&&inc.bum;
 document.querySelectorAll("[data-m]").forEach(function(x){x.setAttribute("aria-pressed",!!(m&&(x.dataset.m=="2")==!!inc.sau))});
@@ -182,7 +202,7 @@ $("pl").innerHTML='<tr><th>NAMA BARANG</th><th>SATUAN</th><th>HARGA</th></tr>'+s
 function inp(t,i,f,v,type,k){return '<input type="'+type+'" data-t="'+t+'" data-i="'+i+'" data-f="'+f+'"'+(k!=null?' data-k="'+k+'"':'')+' value="'+esc(v)+'"'+(type=="number"?' inputmode="decimal" min="0" step="any"':'')+'>'}
 function tbl(t,head,rows,add){return '<div class="scroll"><table><tr>'+head.map(function(h){return '<th>'+h+'</th>'}).join("")+'<th></th></tr>'+rows.map(function(r,i){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>'}).join("")+'<td><button class="x" data-del="'+t+':'+i+'" aria-label="Hapus">✕</button></td></tr>'}).join("")+'</table></div><button class="btn" data-add="'+t+'">+ '+add+'</button>'}
 function buildEdit(){
-var h='<h2>Tampilan</h2><div class="row" style="align-items:center"><div style="flex:1;min-width:180px"><div class="lbl">Nama brand</div><input type="text" data-g="brand" value="'+esc(S.brand)+'"></div><div><div class="lbl">Warna</div><input type="color" data-g="color" value="'+esc(S.color)+'"></div></div>';
+var h='<h2>Tampilan</h2><div class="row" style="align-items:center"><div style="flex:1;min-width:180px"><div class="lbl">Nama brand</div><input type="text" data-g="brand" value="'+esc(S.brand)+'"></div><div><div class="lbl">Warna</div><input type="color" data-g="color" value="'+esc(S.color)+'"></div></div><div class="lbl" style="margin-top:8px">Alamat logo (URL gambar, boleh dikosongkan)</div><input type="text" data-g="logo" value="'+esc(S.logo||"")+'" placeholder="mis. logo.png atau https://...">';
 h+='<h2>A. Produk (harga bahan baku &amp; harga jual)</h2><div class="mu" style="margin-bottom:6px">Isi harga beli dan isi (gram), mis. 31000 untuk 1000 gram. Harga jual diisi per ukuran.</div>'
 +tbl("pro",["Produk","Harga beli (Rp)","Isi (gram)","Per gram"].concat(S.uk.map(function(u){return "Jual "+esc(u.n)})),S.pro.map(function(x,i){return [inp("pro",i,"n",x.n,"text"),inp("pro",i,"p",x.p,"number"),inp("pro",i,"g",x.g,"number"),'<span id="pg-pro-'+i+'"></span>'].concat(S.uk.map(function(u,k){return inp("pro",i,"j",x.j[k]||0,"number",k)}))}),"Tambah produk");
 h+='<h2>B. Ukuran</h2><div class="mu" style="margin-bottom:6px">Berat produk, kemasan, serta takaran bumbu dan saus per kemasan (gram). Takaran saus awal masih perkiraan, mohon disesuaikan.</div>'
@@ -250,7 +270,7 @@ if(!sb){canEdit=true;applyRole();all();return}
 var done=false;function go(){if(done)return;done=true;applyRole();all()}
 setTimeout(go,8000);
 sb.from("hpp_config").select("data").eq("brand",BRAND).maybeSingle().then(function(r){
-if(r.error){loadErr=r.error.message||"error tidak diketahui"}else if(r.data&&r.data.data){DEF=r.data.data}else{noData=true;DEF.brand=BRAND.charAt(0).toUpperCase()+BRAND.slice(1)}
+if(r.error){loadErr=r.error.message||"error tidak diketahui"}else if(r.data&&r.data.data){DEF=r.data.data}else{noData=true;if(!new URLSearchParams(location.search).get("brand")&&CFG.nama){DEF.brand=CFG.nama}else{DEF.brand=BRAND.charAt(0).toUpperCase()+BRAND.slice(1)}}
 S=load();return sb.auth.getSession()}).then(function(r){var ses=r&&r.data&&r.data.session;if(ses){canEdit=true;S=clone(DEF)}startRealtime();go()}).catch(function(){go()})})();
 })();
 </script>

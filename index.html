@@ -89,6 +89,7 @@ textarea{border:1.5px solid var(--line)}
 <div id="bsec"><h2>5. Pilih bumbu</h2><div class="row" id="bchips"></div></div>
 <div id="ssec"><h2>6. Pilih saus</h2><div class="row" id="schips"></div></div>
 <h2>Harga jual kamu</h2><div class="mu">Isi harga jual ke konsumen sesuai harga yang kamu pakai. Tersimpan per produk dan ukuran.</div><div class="lbl" id="jlbl" style="margin-top:6px"></div><input type="number" id="jual" inputmode="decimal" min="0" placeholder="contoh 6000" style="max-width:240px">
+<div id="osec" hidden><h2>Ongkir (opsional)</h2><div class="mu">Isi total ongkir pengiriman dan jumlah kemasan dalam pengiriman itu. Ongkir dibagi rata per kemasan, lalu ditambahkan ke HPP. Tersimpan di perangkat ini.</div><div class="row" style="margin-top:6px"><div class="tkw"><div class="lbl">Total ongkir (Rp)</div><input type="number" id="ok-tot" inputmode="decimal" min="0" placeholder="contoh 50000"></div><div class="tkw"><div class="lbl">Jumlah kemasan dikirim</div><input type="number" id="ok-qty" inputmode="decimal" min="0" placeholder="contoh 20"></div></div><div class="lbl" id="ok-res" style="margin-top:6px"></div></div>
 <h2 id="tklbl">Takaran per kemasan</h2><div class="mu">Isi takaran (gram) untuk ukuran yang dipilih. Tersimpan per ukuran.</div><div class="row" style="margin-top:6px"><div class="tkw"><div class="lbl">Isi produk (gr)</div><input type="number" id="tk-gr" data-tk="gr" inputmode="decimal" min="0" placeholder="gram"></div><div class="tkw" id="tkw-bu"><div class="lbl">Bumbu (gr)</div><input type="number" id="tk-bu" data-tk="bu" inputmode="decimal" min="0" placeholder="gram"></div><div class="tkw" id="tkw-sa"><div class="lbl">Saus (gr)</div><input type="number" id="tk-sa" data-tk="sa" inputmode="decimal" min="0" placeholder="gram"></div></div>
 </div>
 
@@ -154,7 +155,9 @@ uk:[{n:"Besar 100 gr",gr:100,kem:0,bu:8,sa:30},{n:"Kecil 50 gr",gr:50,kem:1,bu:4
 kem:[{n:"Plastik Besar 100 gr",p:5000,g:10},{n:"Plastik Kecil 50 gr",p:3000,g:10},{n:"Foodpail",p:13000,g:10}],
 bum:[B("Original",5200),B("Keju",8000),B("Jagung Manis",5100),B("Pedas Level 5",6000),B("PDJ",6500),B("Rendang",7000),B("Sapi Panggang",7500),B("Rumput Laut",7500),B("BBQ",7500),B("Balado Super Pedas",9400),B("Asin Daun Jeruk",8000),B("Ayam Bawang",8000)],
 sau:[{n:"Saus Keju",p:45000,g:1000},{n:"Saus Pedas Level 5",p:24000,g:1000},{n:"Chili Oil",p:77000,g:1000},{n:"Saus BBQ",p:47000,g:1000},{n:"Saus Bolognese",p:38000,g:500}]};
-var S=load(),sel={p:0,u:0,b:0,s:0},inc={bahan:1,kem:1,bum:1,sau:0};
+var OK=(function(){try{var o=JSON.parse(localStorage.getItem(KEY+"-ongkir"));if(o)return{tot:+o.tot||0,qty:+o.qty||0,on:o.on?1:0}}catch(e){}return{tot:0,qty:0,on:0}})();
+function saveOng(){try{localStorage.setItem(KEY+"-ongkir",JSON.stringify({tot:OK.tot,qty:OK.qty,on:inc.ong}))}catch(x){}}
+var S=load(),sel={p:0,u:0,b:0,s:0},inc={bahan:1,kem:1,bum:1,sau:0,ong:OK.on};
 function $(i){return document.getElementById(i)}
 function clone(x){return JSON.parse(JSON.stringify(x))}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -171,6 +174,7 @@ if(inc.bahan)r.push([P.n,U.gr+" gr",U.gr*pg(P),U.gr>0]);
 if(inc.kem)r.push([K.n,"1 pcs",K.p/(K.g||1)]);
 if(inc.bum&&Bm)r.push(["Bumbu "+Bm.n,U.bu+" gr",U.bu*pg(Bm),U.bu>0]);
 if(inc.sau&&A)r.push([A.n,U.sa+" gr",U.sa*pg(A),U.sa>0]);
+if(inc.ong){var oq=OK.tot>0&&OK.qty>0;r.push(["Ongkir",oq?fmt(OK.tot)+" ÷ "+OK.qty+" kemasan":"per kemasan",oq?OK.tot/OK.qty:0,oq])}
 var hpp=r.reduce(function(a,x){return a+x[2]},0),j=P.j[u]||0,has=j>0;
 return{r:r,hpp:hpp,jual:j,has:has,profit:j-hpp,pct:has&&hpp?(j-hpp)/hpp*100:0}}
 function chips(a,k,cur){return a.map(function(x,i){return '<button class="chip" data-'+k+'="'+i+'" aria-pressed="'+(i==cur)+'">'+esc(x.n)+'</button>'}).join("")}
@@ -181,8 +185,9 @@ $("brand").textContent=S.brand;var lg=S.logo||"",im=$("logo");if(lg){im.src=lg;i
 $("pchips").innerHTML=chips(S.pro,"p",sel.p);$("uchips").innerHTML=chips(S.uk,"u",sel.u);
 var m=inc.bahan&&inc.kem&&inc.bum;
 document.querySelectorAll("[data-m]").forEach(function(x){x.setAttribute("aria-pressed",!!(m&&(x.dataset.m=="2")==!!inc.sau))});
-$("cchips").innerHTML=[["bahan","Bahan produk"],["kem","Kemasan / plastik"],["bum","Bumbu"],["sau","Saus"]].map(function(c){return '<label class="chk"><input type="checkbox" data-c="'+c[0]+'"'+(inc[c[0]]?" checked":"")+'>'+c[1]+'</label>'}).join("");
+$("cchips").innerHTML=[["bahan","Bahan produk"],["kem","Kemasan / plastik"],["bum","Bumbu"],["sau","Saus"],["ong","Ongkir"]].map(function(c){return '<label class="chk"><input type="checkbox" data-c="'+c[0]+'"'+(inc[c[0]]?" checked":"")+'>'+c[1]+'</label>'}).join("");
 $("bsec").hidden=!inc.bum;$("ssec").hidden=!(inc.sau&&S.sau.length);
+$("osec").hidden=!inc.ong;[["tot","ok-tot"],["qty","ok-qty"]].forEach(function(z){var el=$(z[1]);if(document.activeElement!==el)el.value=OK[z[0]]>0?OK[z[0]]:""});$("ok-res").textContent=OK.tot>0&&OK.qty>0?"Ongkir per kemasan: "+fmt(OK.tot/OK.qty):"Isi kedua kolom di atas untuk menghitung ongkir per kemasan.";
 $("bchips").innerHTML=chips(S.bum,"b",sel.b);$("schips").innerHTML=chips(S.sau,"s",sel.s);
 var c=calc(sel.p,sel.u,sel.b,sel.s),tag=[S.pro[sel.p].n,S.uk[sel.u].n],U=S.uk[sel.u],ms=[];
 if(inc.bahan&&!(U.gr>0))ms.push("isi gram produk");if(inc.bum&&!(U.bu>0))ms.push("takaran bumbu");if(inc.sau&&S.sau.length&&!(U.sa>0))ms.push("takaran saus");
@@ -235,7 +240,7 @@ var t=e.target.closest("button,tr.pick,#admlink");if(!t)return;var d=t.dataset;
 if(d.p!=null)sel.p=+d.p;
 else if(d.tab){tab=d.tab}
 else if(d.u!=null)sel.u=+d.u;
-else if(d.m){inc={bahan:1,kem:1,bum:1,sau:d.m=="2"?1:0}}
+else if(d.m){inc={bahan:1,kem:1,bum:1,sau:d.m=="2"?1:0,ong:inc.ong}}
 else if(d.b!=null)sel.b=+d.b;
 else if(d.s!=null)sel.s=+d.s;
 else if(d.cb!=null){sel.b=+d.cb;$("res").scrollIntoView({behavior:"smooth",block:"start"})}
@@ -254,8 +259,9 @@ else if(t.id=="admlink"){e.preventDefault();$("loginbox").hidden=false;return}
 else if(t.id=="reset"){if(confirm("Batalkan perubahan yang belum diterbitkan?")){S=clone(DEF);all()}return}
 else return;
 render()});
-document.addEventListener("change",function(e){var c=e.target.dataset.c;if(c){inc[c]=e.target.checked?1:0;render()}});
+document.addEventListener("change",function(e){var c=e.target.dataset.c;if(c){inc[c]=e.target.checked?1:0;if(c=="ong")saveOng();render()}});
 document.addEventListener("input",function(e){
+if(e.target.id=="ok-tot"||e.target.id=="ok-qty"){var ov=parseFloat(e.target.value);ov=isNaN(ov)||ov<0?0:ov;OK[e.target.id=="ok-tot"?"tot":"qty"]=ov;saveOng();render();return}
 if(e.target.id=="jual"){var jv=parseFloat(e.target.value);var jw=isNaN(jv)||jv<0?0:jv;S.pro[sel.p].j[sel.u]=jw;if(!canEdit){LJ[sel.p+"|"+sel.u]=jw;try{localStorage.setItem(KEY,JSON.stringify(LJ))}catch(x){}}render();buildEdit();return}
 if(e.target.dataset.tk){var tv=parseFloat(e.target.value);S.uk[sel.u][e.target.dataset.tk]=isNaN(tv)||tv<0?0:tv;save();render();buildEdit();return}
 var d=e.target.dataset;if(d.g){S[d.g]=e.target.value;save();render();return}
